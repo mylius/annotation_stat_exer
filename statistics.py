@@ -243,8 +243,15 @@ if __name__ == "__main__":
         action="store_true",
         help="If set the data will be plotted.",
     )
+    parser.add_argument(
+        "-r",
+        action="store_true",
+        help="If set the data will be reinitialized.",
+    )
     plot = parser.parse_args().p
+    reinit = parser.parse_args().r
     try:
+        assert(not reinit)
         df = pd.read_pickle("./.dataframe.pkl")
     except:
         df = annodata_to_df()
