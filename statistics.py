@@ -329,7 +329,7 @@ def scale(X, x_min, x_max):
     return x_min + nom / denom
 
 
-def annotator_quality(df, weights=[2, 0.5, 0.5], plot=True):
+def annotator_quality(df,duration,unsolved, weights=[2, 0.5, 0.5], plot=True):
     """
     Takes the annotations DataFrame and returns a Dataframe a metric for the quality of each annotator.
     The metric takes three things into account: f1-score, number of unsolved questions, and mean time.
@@ -343,15 +343,16 @@ def annotator_quality(df, weights=[2, 0.5, 0.5], plot=True):
     plot: A Boolean
     """
     class_df = calc_f1(df, plot)
+    print(class_df)
     f1_df = (
         class_df.xs("accuracy", level=1, axis=1, drop_level=False)
         .iloc[0]
         .T.droplevel(1)
     )
     accuracy = scale(f1_df, 0, 1)
-    unsolved = get_unsolved(df, False)
+    unsolved = unsolved
     cant = scale(unsolved['% "can\'t solves"'], 0, 1)
-    mean_time = scale(get_duration_stat(df, False)["mean"], 0, 1)
+    mean_time = scale(duration["mean"], 0, 1)
     quality = weights[0] * accuracy - weights[1] * cant - weights[2] * mean_time
     idx_temp = quality.index
     if plot:
@@ -367,6 +368,7 @@ def annotator_quality(df, weights=[2, 0.5, 0.5], plot=True):
         )
         fig_qual.show()
     quality.index = idx_temp
+    print("\nQuality of Annotators:")
     return quality
 
 
@@ -399,7 +401,8 @@ if __name__ == "__main__":
     print(num_annotators)
     # 1b
     print("\nAnswer Durations:")
-    print(get_duration_stat(df, plot))
+    durations = get_duration_stat(df, plot)
+    print(durations)
     # 1c
     print("\nNumber of Annotations:")
     print(get_num_of_annot_stat(df, plot))
@@ -408,10 +411,11 @@ if __name__ == "__main__":
     print(get_disagreement(df))
     # 2a
     print("\nUnsolved Questions:")
-    print(get_unsolved(df, plot))
+    unsolved = get_unsolved(df, plot)
+    print(unsolved)
     # 3
     print("\nReference Balance:")
     print(plot_ref_balance(plot))
     # 4
-    print("\nMatch Between Reference and Annotators:")
-    print(annotator_quality(df, plot=plot))
+    print("\nMatch Between Reference and Annotations:")
+    print(annotator_quality(df,durations, unsolved,plot=plot))
