@@ -6,6 +6,9 @@ import plotly.express as px
 from sklearn.metrics import classification_report
 import argparse
 from warnings import warn
+from sklearn.preprocessing import normalize
+
+default_font_size = 15
 
 
 def annodata_to_df():
@@ -83,20 +86,30 @@ def get_duration_stat(df, plot=True):
     ).sort_index()
     durations_df.columns = ["mean", "min", "max"]
     durations_df.index = durations_df.index.set_names(["annotators"])
-    dur_smaller_zero = min_durations[min_durations<0]
+    dur_smaller_zero = min_durations[min_durations < 0]
     if len(dur_smaller_zero) == 1:
         warn("Warning: {} has durations < 0.".format(list(dur_smaller_zero.index)))
     if len(dur_smaller_zero) > 1:
         warn("Warning: {} have durations < 0.".format(list(dur_smaller_zero.index)))
+    idx_temp = durations_df.index
     if plot:
+        durations_df.index = range(1, 23)
         fig_dur = px.bar(
             durations_df,
             y=["min", "max", "mean"],
             barmode="group",
-            title="Annotations Times",
+            # title="Annotations Times",
+        )
+        fig_dur.update_layout(
+            {"plot_bgcolor": "rgba(0, 0, 0, 0)", "paper_bgcolor": "rgba(0, 0, 0, 0)",}
         )
         fig_dur.update_yaxes(title_text="Time[s]")
+        fig_dur.update_layout(
+            xaxis=dict(dtick=1, tickmode="linear", title_text="Annotator"),
+            font=dict(size=default_font_size),
+        )
         fig_dur.show()
+    durations_df.index = idx_temp
     return durations_df
 
 
@@ -115,14 +128,29 @@ def get_num_of_annot_stat(df, plot=True):
         columns=["#Annotations"],
     ).sort_index()
     num_df.index = num_df.index.set_names(["annotators"])
+    idx_temp = num_df.index
     if plot:
+        num_df.index = range(1, 23)
         fig_num_anno = px.bar(
-            num_df, y=["#Annotations"], barmode="group", title="Number of Annotations"
+            num_df,
+            y=["#Annotations"],
+            barmode="group",  # title="Number of Annotations"
+        )
+        fig_num_anno.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            font=dict(size=default_font_size),
+        )
+        fig_num_anno.update_traces(textposition="inside", textfont_size=14)
+        fig_num_anno.update_layout(
+            xaxis=dict(dtick=1, tickmode="linear", title_text="Annotator")
         )
         fig_num_anno.show()
+    num_df.index = idx_temp
     return num_df
 
-def get_disagreement(df,thresh=0.4):
+
+def get_disagreement(df, thresh=0.4):
     """
     Takes the annotations DataFrame and a threshold and returns a Dataframe containing the questions annotators disagreed on the most.
     Cut off is determined by the threshold.
@@ -135,11 +163,21 @@ def get_disagreement(df,thresh=0.4):
     answer_df = df.xs("answer", level=1, axis=1, drop_level=False).droplevel(1, axis=1)
     temp = answer_df.T.apply(pd.Series.value_counts, axis=0).fillna(0)
     temp = temp.drop([""])
-    no_smaller = temp.T[temp.T["no"]<temp.T["yes"]]
-    yes_smaller = temp.T[temp.T["no"]>temp.T["yes"]]
-    agreement_df = abs(1-pd.concat([yes_smaller["yes"]/yes_smaller["no"],no_smaller["no"]/no_smaller["yes"]])/0.5).sort_index()
-    disagreable = agreement_df[agreement_df<thresh]
+    no_smaller = temp.T[temp.T["no"] < temp.T["yes"]]
+    yes_smaller = temp.T[temp.T["no"] > temp.T["yes"]]
+    agreement_df = abs(
+        1
+        - pd.concat(
+            [
+                yes_smaller["yes"] / yes_smaller["no"],
+                no_smaller["no"] / no_smaller["yes"],
+            ]
+        )
+        / 0.5
+    ).sort_index()
+    disagreable = agreement_df[agreement_df < thresh]
     return disagreable
+
 
 def plot_ref_balance(plot=True):
     """
@@ -153,12 +191,18 @@ def plot_ref_balance(plot=True):
     reference = pd.read_json(r"./data/references.json").T
     if plot:
         fig_balance = px.pie(
-            reference, names="is_bicycle", title="Balance of the reference set"
+            reference, names="is_bicycle",  # title="Balance of the reference set"
+        )
+        fig_balance.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            font=dict(size=18),
         )
         fig_balance.show()
     return reference["is_bicycle"].value_counts()
 
-def calc_f1(df, thresh=0.25,plot=True):
+
+def calc_f1(df, plot=True):
     """
     Takes the annotations DataFrame and returns a Dataframe containing a classification report for each annotator.
     If plot is the f1 score will be plotted.
@@ -197,11 +241,16 @@ def calc_f1(df, thresh=0.25,plot=True):
             .iloc[0]
             .T.droplevel(1)
         )
-        fig_dur = px.bar(
-            class_df_plot,
-            title="F1-Score of the Accuracy",
+        class_df_plot.index = range(1, 23)
+        fig_dur = px.bar(class_df_plot)
+        fig_dur.update_layout(
+            {"plot_bgcolor": "rgba(0, 0, 0, 0)", "paper_bgcolor": "rgba(0, 0, 0, 0)",}
         )
         fig_dur.update_yaxes(title_text="f1-score")
+        fig_dur.update_layout(
+            xaxis=dict(dtick=1, tickmode="linear", title_text="Annotator"),
+            font=dict(size=default_font_size),
+        )
         fig_dur.show()
     return class_df
 
@@ -216,7 +265,7 @@ def get_unsolved(df, plot=True):
     df: The annotations DataFrame created by annodata_to_df()
     plot: A Boolean
     """
-    #cant_solve
+    # cant_solve
     cant_solve = df.xs("cant_solve", level=1, axis=1, drop_level=False).droplevel(
         1, axis=1
     )
@@ -229,9 +278,10 @@ def get_unsolved(df, plot=True):
     print("Number of times an image was labeld as unsolvable:")
     print(cant_solve.loc[True].sum())
     cant_solve = pd.DataFrame(
-        cant_solve.fillna(0).iloc[1] * 100 / cant_solve.iloc[0], columns=['% "can\'t solves"']
+        cant_solve.fillna(0).iloc[1] * 100 / cant_solve.iloc[0],
+        columns=['% "can\'t solves"'],
     )
-    #corrupt
+    # corrupt
     corrupt_annot = df.xs("corrupt_data", level=1, axis=1, drop_level=False).droplevel(
         1, axis=1
     )
@@ -247,65 +297,121 @@ def get_unsolved(df, plot=True):
         corrupt_annot.fillna(0).iloc[1] * 100 / corrupt_annot.iloc[0],
         columns=['% "corrupt"'],
     )
-    unsolved_df = pd.concat([corrupt_annot,cant_solve],axis=1)
+    unsolved_df = pd.concat([corrupt_annot, cant_solve], axis=1)
+    idx_temp = unsolved_df.index
     if plot:
-        fig_dur = px.bar(
+        unsolved_df.index = range(1, 23)
+        fig_unsol = px.bar(
             unsolved_df,
-            y=['% "can\'t solves"','% "corrupt"'],
+            y=['% "can\'t solves"', '% "corrupt"'],
             barmode="group",
-            title="Percentage of Unsolved Questions",
+            # title="Percentage of Unsolved Questions",
         )
-        fig_dur.update_yaxes(title_text="%")
-        fig_dur.show()
+        fig_unsol.update_layout(
+            {"plot_bgcolor": "rgba(0, 0, 0, 0)", "paper_bgcolor": "rgba(0, 0, 0, 0)",}
+        )
+        fig_unsol.update_yaxes(title_text="%")
+        fig_unsol.update_layout(
+            xaxis=dict(dtick=1, tickmode="linear", title_text="Annotator"),
+            font=dict(size=default_font_size),
+        )
+        fig_unsol.show()
     print("Percentage of Unsolved Questions:")
+    unsolved_df.index = idx_temp
     return unsolved_df
 
 
+def scale(X, x_min, x_max):
+    """Taken from https://datascience.stackexchange.com/questions/39142/normalize-matrix-in-python-numpy"""
+    nom = (X - X.min(axis=0)) * (x_max - x_min)
+    denom = X.max(axis=0) - X.min(axis=0)
+    denom = denom + (denom is 0)
+    return x_min + nom / denom
+
+
+def annotator_quality(df, weights=[2, 0.5, 0.5], plot=True):
+    """
+    Takes the annotations DataFrame and returns a Dataframe a metric for the quality of each annotator.
+    The metric takes three things into account: f1-score, number of unsolved questions, and mean time.
+    A weight can be applied to each of these by passing a list of weights.
+    If plot is True a plot of the data will be created.
+
+    Arguments
+    ----------
+    df: The annotations DataFrame created by annodata_to_df()
+    weights: A list of three floats
+    plot: A Boolean
+    """
+    class_df = calc_f1(df, plot)
+    f1_df = (
+        class_df.xs("accuracy", level=1, axis=1, drop_level=False)
+        .iloc[0]
+        .T.droplevel(1)
+    )
+    accuracy = scale(f1_df, 0, 1)
+    unsolved = get_unsolved(df, False)
+    cant = scale(unsolved['% "can\'t solves"'], 0, 1)
+    mean_time = scale(get_duration_stat(df, False)["mean"], 0, 1)
+    quality = weights[0] * accuracy - weights[1] * cant - weights[2] * mean_time
+    idx_temp = quality.index
+    if plot:
+        quality.index = range(1, 23)
+        fig_qual = px.bar(quality)
+        fig_qual.update_layout(
+            {"plot_bgcolor": "rgba(0, 0, 0, 0)", "paper_bgcolor": "rgba(0, 0, 0, 0)",}
+        )
+        fig_qual.update_yaxes(title_text="Score")
+        fig_qual.update_layout(
+            xaxis=dict(dtick=1, tickmode="linear", title_text="Annotator"),
+            font=dict(size=default_font_size),
+        )
+        fig_qual.show()
+    quality.index = idx_temp
+    return quality
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Statistics on Annotation Data"
+    parser = argparse.ArgumentParser(description="Statistics on Annotation Data")
+    parser.add_argument(
+        "-p", action="store_true", help="If set the data will be plotted.",
     )
     parser.add_argument(
-        "-p",
-        action="store_true",
-        help="If set the data will be plotted.",
-    )
-    parser.add_argument(
-        "-r",
-        action="store_true",
-        help="If set the data will be reinitialized.",
+        "-r", action="store_true", help="If set the data will be reinitialized.",
     )
     plot = parser.parse_args().p
     reinit = parser.parse_args().r
     try:
-        assert(not reinit)
+        assert not reinit
         df = pd.read_pickle("./.dataframe.pkl")
     except:
         df = annodata_to_df()
         df.to_pickle("./.dataframe.pkl")
-    #get_corrupt_annot(df)
-    
+    # get_corrupt_annot(df)
+
     num_annotators = (
-        df.xs("duration", level=1, axis=1, drop_level=False).droplevel(1, axis=1).shape[1]
+        df.xs("duration", level=1, axis=1, drop_level=False)
+        .droplevel(1, axis=1)
+        .shape[1]
     )
-    #1a
+    # 1a
+
     print("Total Number of Annotators:")
     print(num_annotators)
-    #1b
+    # 1b
     print("\nAnswer Durations:")
-    print(get_duration_stat(df,plot))
-    #1c
+    print(get_duration_stat(df, plot))
+    # 1c
     print("\nNumber of Annotations:")
-    print(get_num_of_annot_stat(df,plot))
-    #1d
+    print(get_num_of_annot_stat(df, plot))
+    # 1d
     print("\nQuestions Annotaters disagreed on:")
     print(get_disagreement(df))
-    #2a
+    # 2a
     print("\nUnsolved Questions:")
-    print(get_unsolved(df,plot))
-    #3
+    print(get_unsolved(df, plot))
+    # 3
     print("\nReference Balance:")
     print(plot_ref_balance(plot))
-    #4
+    # 4
     print("\nMatch Between Reference and Annotators:")
-    print(calc_f1(df,plot))
+    print(annotator_quality(df, plot=plot))
