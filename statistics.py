@@ -11,15 +11,21 @@ from sklearn.preprocessing import normalize
 default_font_size = 15
 
 
-def annodata_to_df():
+def annodata_to_df(ref_path=r"./data/references.json",data_path=r"./data/anonymized_project.json"):
     """
     This function reads the annotation data and the reference data and creates a annotator focused multilevel pandas dataframe.
+    There is probably some potential for optimization here.
+    Custom reference and data file paths can be passed.
+    Arguments
+    ----------
+    ref_path: string pointing to reference json file
+    data_path: string pointing to annotation json file
     """
-    with open("./data/anonymized_project.json", "r") as f:
+    with open(data_path, "r") as f:
         data = json.load(f)
     results = data["results"]["root_node"]["results"]
     sessions = list(results.keys())
-    reference = pd.read_json(r"./data/references.json").T
+    reference = pd.read_json(ref_path).T
     annotators = {}
     # df = pd.read_json(r"./data/references.json").T
     colnames = ["answer", "cant_solve", "corrupt_data", "duration"]
