@@ -1,4 +1,4 @@
-# Statistical Analisys of Annotation-Data
+# Statistical Analysis of Annotation-Data
 
 ## Dependencies
 
