@@ -298,7 +298,7 @@ def scale(X, x_min, x_max):
     return x_min + nom / denom
 
 
-def annotator_quality(df, duration, unsolved, weights=[2, 0.5, 0.5], plot=True):
+def annotator_quality(df, duration, unsolved, weights=[2, 0.5, 0.5, 1], plot=True):
     """
     Takes the annotations DataFrame and returns a Dataframe a metric for the quality of each annotator.
     The metric takes three things into account: f1-score, number of unsolved questions, and mean time.
@@ -319,11 +319,14 @@ def annotator_quality(df, duration, unsolved, weights=[2, 0.5, 0.5], plot=True):
         .T.droplevel(1)
     )
     accuracy = scale(f1_df, 0, 1)
-    unsolved = unsolved
     cant = scale(unsolved['% "can\'t solves"'], 0, 1)
     mean_time = scale(duration["mean"], 0, 1)
+    answers = scale(get_num_of_annot_stat(df, False)["#Annotations"], 0, 1)
     quality = pd.DataFrame(
-        weights[0] * accuracy - weights[1] * cant - weights[2] * mean_time,
+        weights[0] * accuracy
+        - weights[1] * cant
+        - weights[2] * mean_time
+        + weights[3] * answers,
         columns=["Quality"],
     )
     if plot:
@@ -378,4 +381,3 @@ if __name__ == "__main__":
     # 4
     print("\nMatch Between Reference and Annotations:")
     print(annotator_quality(df, durations, unsolved, plot=plot))
-
